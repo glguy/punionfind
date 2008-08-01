@@ -1,10 +1,11 @@
-{-# LANGUAGE TypeFamilies, FlexibleContexts, GADTs #-}
+{-# LANGUAGE FlexibleContexts, GADTs #-}
 module UnionFind (UnionFind, newUnionFind, union, find) where
 
 import RevertArray (RArray)
 import PersistentArray (PersistentArray(..))
 import Control.Monad.ST
 import Data.STRef
+import Ref
 
 data UnionFind a s where
    UF :: PersistentArray (a Int s) Int s
@@ -12,16 +13,12 @@ data UnionFind a s where
 
 newUnionFind :: PersistentArray (a Int s) Int s => Int -> ST s (UnionFind a s)
 newUnionFind n = do
-  parents <- newSTRef =<< create n id
-  ranks   <- create n (const 0)
-  return (UF parents ranks)
+  pref  <- newRef =<< create n id
+  ranks <- create n (const 0)
+  return (UF pref ranks)
 
 find :: UnionFind a s -> Int -> ST s Int
-find (UF pref _) i = do
-  parents <- readSTRef pref
-  (parents', p) <- go parents i
-  writeSTRef pref parents'
-  return p
+find (UF pref _) i = modifyRefM pref (\ arr -> go arr i)
   where
   go parents i = do
     p <- get parents i
@@ -49,8 +46,8 @@ rank (UF _ ranks) x = get ranks x
 
 link :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
 link (UF pref rref) x y = do
-  parents <- readSTRef pref
-  pref'   <- newSTRef =<< set parents y x
+  parents <- getRef pref
+  pref'   <- newRef =<< set parents y x
   return (UF pref' rref)
 
 incRank :: UnionFind a s -> Int -> ST s (UnionFind a s)
@@ -59,7 +56,8 @@ incRank (UF pref ranks) x = do
   ranks' <- set ranks x (r+1)
   return (UF pref ranks')
 
-type MyUnionFind = UnionFind Rarray
+
+type MyUnionFind = UnionFind RArray
 
 testuf = do
   uf <- newUnionFind 5 :: ST s (MyUnionFind s)
@@ -71,4 +69,3 @@ testuf = do
   e <- find uf 2
   f <- find uf 3
   return (a,b,c,d,e,f)
-

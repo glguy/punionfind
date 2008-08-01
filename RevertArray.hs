@@ -6,6 +6,7 @@ import Data.STRef
 import Data.Array.Vector
 import PersistentArray (PersistentArray)
 import qualified PersistentArray
+import Ref
 
 newtype RArray e s = RArray (STRef s (ArrayHistory e s))
 
@@ -23,27 +24,27 @@ data ArrayHistory e s
 create n f = do
   arr <- newMU n
   mapM_ (\ i -> writeMU arr i (f i)) [0..n-1]
-  ref <- newSTRef (Arr arr)
+  ref <- newRef (Arr arr)
   return (RArray ref)
 
 get r@(RArray ref) i = do
-  h <- readSTRef ref
+  h <- getRef ref
   case h of
     Arr arr -> readMU arr i
     Diff {} -> do
       arr <- flatten ref
-      writeSTRef ref (Arr arr)
+      setRef ref (Arr arr)
       readMU arr i
     _ -> error "get: invalid array"
 
 flatten ref = do
-  h <- readSTRef ref
+  h <- getRef ref
   case h of
     Arr arr -> return arr
     Diff (RArray r) i e -> do
       arr <- flatten r
       writeMU arr i e
-      writeSTRef r Invalid
+      setRef r Invalid
       return arr
     _ -> error "flatten: invalid array"
 
@@ -51,8 +52,8 @@ set (RArray ref) i e = do
   arr <- flatten ref
   old <- readMU arr i
   writeMU arr i e
-  r <- RArray `fmap` newSTRef (Arr arr)
-  writeSTRef ref (Diff r i old)
+  r <- RArray `fmap` newRef (Arr arr)
+  setRef ref (Diff r i old)
   return r
 
 test = do
