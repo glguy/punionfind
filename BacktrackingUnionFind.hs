@@ -1,5 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
-
+{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses, Rank2Types #-}
 {- |
 Module      :  BacktrackingUnionFind
 Description :  Efficient backtracking union-find monad
@@ -21,7 +20,7 @@ import Control.Monad.ST
 import UnionFind
 import RevertArray
 
-newtype M s a = M (StateT (UnionFind RevertArray s) (ChoiceT (ST s)) a)
+newtype M s a = M { unM :: StateT (UnionFind RevertArray s) (ChoiceT (ST s)) a }
   deriving (Monad, MonadPlus)
 
 instance BaseM (ST s) (ST s) where
@@ -32,10 +31,9 @@ instance BaseM (M s) (ST s) where
 
 -- | Runs the backtracking computation with union/find operations supported
 --   on indexes from 0 to n-1 and returns the first success if one is found.
-runM :: Int -> M s a -> ST s (Maybe a)
-runM n (M m) = do
-    uf <- newUnionFind n
-    findOne $ fmap fst $ runStateT uf m
+runM :: forall b. Int -> (forall s. M s b) -> [b]
+runM n m = runST $ do uf <- newUnionFind n
+                      findAll $ fmap fst $ runStateT uf $ unM m
 
 unify :: Int -> Int -> M s ()
 unify x y = M $ do

@@ -32,7 +32,7 @@ data ArrayHistory e s
   = Arr  !(MUArr e s)                  -- ^ Latest version of the array
   | Diff !(RevertArray e s) !Int !e    -- ^ The array has been modified
   | Invalid                            -- ^ The array has been reverted
-  
+
 instance UA e => PersistentArray (RevertArray e s) e (ST s) where
   newArr = new
   getArr = get

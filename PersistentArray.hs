@@ -15,7 +15,7 @@ Portability :  non-portable
 module PersistentArray where
 
 class Monad m => PersistentArray a e m | a -> e m where
-  newArr :: Int -> (Int -> e) -> m a 
+  newArr :: Int -> (Int -> e) -> m a
   getArr :: a -> Int -> m e
   setArr :: a -> Int -> e -> m a
 

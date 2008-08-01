@@ -46,8 +46,8 @@ union uf x y = do
   cx <- find uf x
   cy <- find uf y
   if cx == cy then return uf else do
-    rx <- rank uf x
-    ry <- rank uf y
+    rx <- rank uf cx
+    ry <- rank uf cy
     case compare rx ry of
       GT -> link uf cy cx
       LT -> link uf cx cy
