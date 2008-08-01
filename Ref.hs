@@ -1,5 +1,17 @@
 {-# LANGUAGE FunctionalDependencies, MultiParamTypeClasses, FlexibleInstances #-}
 
+{- |
+Module      :  Ref
+Description :  Generic operations on reference types
+Copyright   :  (c) 2008 Eric Mertens
+License     :  BSD3
+
+Maintainer  :  emertens@gmail.com
+Stability   :  provisional
+Portability :  non-portable
+
+-}
+
 module Ref where
 
 import Data.IORef

@@ -1,5 +1,17 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
+{- |
+Module      :  RevertArray
+Description :  Efficient backtracking array data structure
+Copyright   :  (c) 2008 Eric Mertens
+License     :  BSD3
+
+Maintainer  :  emertens@gmail.com
+Stability   :  provisional
+Portability :  non-portable
+
+-}
+
 module RevertArray (RevertArray) where
 
 import Control.Monad.ST

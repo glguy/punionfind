@@ -1,5 +1,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 
+{- |
+Module      :  BacktrackingUnionFind
+Description :  Efficient backtracking union-find monad
+Copyright   :  (c) 2008 Eric Mertens
+License     :  BSD3
+
+Maintainer  :  emertens@gmail.com
+Stability   :  provisional
+Portability :  non-portable
+
+-}
+
 module BacktrackingUnionFind (M, runM, unify, testEquiv) where
 
 import MonadLib
