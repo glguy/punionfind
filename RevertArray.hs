@@ -1,69 +1,65 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
-module RevertArray where
+
+module RevertArray (RevertArray) where
 
 import Control.Monad.ST
-import Data.STRef
 import Data.Array.Vector
-import PersistentArray (PersistentArray)
-import qualified PersistentArray
+import Data.STRef
+
+import PersistentArray
 import Ref
 
-newtype RArray e s = RArray (STRef s (ArrayHistory e s))
-
-instance UA e => PersistentArray (RArray e s) e s where
-  create        = create
-  get           = get
-  set           = set
-
+-- | RevertArray is a persistent array that allows a previous revision
+--   to be used at the cost of invalidating all subsequent revisions.
+--   This is intended to be used in backtracking situations where an
+--   efficient revert history is needed. The programmer is responsible
+--   for ensuring that a RevertArray value is not used once invalidated.
+newtype RevertArray e s = RA (STRef s (ArrayHistory e s))
 
 data ArrayHistory e s
-  = Arr  !(MUArr e s)
-  | Diff !(RArray e s) !Int !e
-  | Invalid
+  = Arr  !(MUArr e s)                  -- ^ Latest version of the array
+  | Diff !(RevertArray e s) !Int !e    -- ^ The array has been modified
+  | Invalid                            -- ^ The array has been reverted
+  
+instance UA e => PersistentArray (RevertArray e s) e (ST s) where
+  newArr = new
+  getArr = get
+  setArr = set
 
-create n f = do
+new :: UA e => Int -> (Int -> e) -> ST s (RevertArray e s)
+new n f = do
   arr <- newMU n
   mapM_ (\ i -> writeMU arr i (f i)) [0..n-1]
-  ref <- newRef (Arr arr)
-  return (RArray ref)
+  RA `fmap` newRef (Arr arr)
 
-get r@(RArray ref) i = do
+get :: UA e => RevertArray e s -> Int -> ST s e
+get (RA ref) i = do
   h <- getRef ref
   case h of
     Arr arr -> readMU arr i
+    Invalid -> error "get: invalid array"
     Diff {} -> do
-      arr <- flatten ref
+      arr <- revert ref
       setRef ref (Arr arr)
       readMU arr i
-    _ -> error "get: invalid array"
 
-flatten ref = do
-  h <- getRef ref
-  case h of
-    Arr arr -> return arr
-    Diff (RArray r) i e -> do
-      arr <- flatten r
-      writeMU arr i e
-      setRef r Invalid
-      return arr
-    _ -> error "flatten: invalid array"
-
-set (RArray ref) i e = do
-  arr <- flatten ref
+set :: UA e => RevertArray e s -> Int -> e -> ST s (RevertArray e s)
+set (RA ref) i e = do
+  arr <- revert ref
   old <- readMU arr i
   writeMU arr i e
-  r <- RArray `fmap` newRef (Arr arr)
+  r <- RA `fmap` newRef (Arr arr)
   setRef ref (Diff r i old)
   return r
 
-test = do
-  arr1 <- create 5 (const 0) :: ST s (RArray Int s)
-  arr2 <- set arr1 2 16
-  arr3 <- set arr2 2 32
-  arr4 <- set arr3 2 48
-  a <- get arr4 2
-  b <- get arr2 2
-  c <- get arr1 2
-  return (a,b,c)
-
-main = print $ runST test
+revert :: UA e => STRef s (ArrayHistory e s) -> ST s (MUArr e s)
+revert ref = do
+  h <- getRef ref
+  case h of
+    Arr arr -> return arr
+    Invalid -> error "revert: invalid array"
+    Diff (RA r) i e -> do
+      arr <- revert r
+      writeMU arr i e
+      setRef r Invalid
+      return arr

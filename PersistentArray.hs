@@ -1,9 +1,11 @@
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
-module PersistentArray (PersistentArray(..)) where
 
-import Control.Monad.ST (ST)
+module PersistentArray where
 
-class PersistentArray a e s | a -> e s where
-  create :: Int -> (Int -> e) -> ST s a
-  get    :: a -> Int -> ST s e
-  set    :: a -> Int -> e -> ST s a
+class Monad m => PersistentArray a e m | a -> e m where
+  newArr :: Int -> (Int -> e) -> m a 
+  getArr :: a -> Int -> m e
+  setArr :: a -> Int -> e -> m a
+
+modifyArr :: PersistentArray a e m => a -> Int -> (e -> e) -> m a
+modifyArr a i f = setArr a i . f =<< getArr a i

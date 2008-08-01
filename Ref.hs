@@ -1,8 +1,10 @@
 {-# LANGUAGE FunctionalDependencies, MultiParamTypeClasses, FlexibleInstances #-}
-module Ref (Ref(..)) where
 
+module Ref where
+
+import Data.IORef
 import Data.STRef
-import Control.Monad.ST (ST)
+import Control.Monad.ST
 
 class Monad m => Ref ref m | ref -> m where
   newRef :: a -> m (ref a)
@@ -22,3 +24,8 @@ instance Ref (STRef s) (ST s) where
   newRef = newSTRef
   setRef = writeSTRef
   getRef = readSTRef
+
+instance Ref IORef IO where
+  newRef = newIORef
+  setRef = writeIORef
+  getRef = readIORef
