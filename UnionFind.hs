@@ -20,12 +20,11 @@ import PersistentArray
 import Ref
 import RevertArray
 
-
 data UnionFind a m where
-   UF :: (Monad m, Ref ref m, PersistentArray a Int m)
+   UF :: (Ref ref m, PersistentArray a Int m)
       => ref a -> a -> UnionFind a m
 
-newUnionFind :: (Monad m, Ref ref m, PersistentArray a Int m)
+newUnionFind :: (Ref ref m, PersistentArray a Int m)
              => Int -> m (UnionFind a m)
 newUnionFind n = liftM2 UF (newRef =<< newArr n id) (newArr n (const 0))
 
