@@ -62,6 +62,7 @@ link (UF pref rref) x y = do
 incRank :: UnionFind a s -> Int -> ST s (UnionFind a s)
 incRank (UF pref ranks) x = UF pref `liftM` modifyArr ranks x (+1)
 
+modifySTRefM :: (STRef s a) -> (a -> ST s (a,b)) -> ST s b
 modifySTRefM ref f = do
      (x,res) <- f =<< readSTRef ref
      writeSTRef ref x
