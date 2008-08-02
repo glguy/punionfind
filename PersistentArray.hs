@@ -13,6 +13,7 @@ Portability :  non-portable
 -}
 
 module PersistentArray where
+import Control.Monad.ST
 
 class Monad m => PersistentArray a e m | a -> e m where
   newArr :: Int -> (Int -> e) -> m a

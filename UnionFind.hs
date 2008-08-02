@@ -15,23 +15,21 @@ Portability :  non-portable
 module UnionFind (UnionFind, newUnionFind, union, find) where
 
 import Control.Monad
-import Control.Monad.ST
-import Data.STRef
 
 import PersistentArray
 import Ref
 import RevertArray
 
 
-data UnionFind a s where
-   UF :: PersistentArray (a Int s) Int (ST s)
-      => STRef s (a Int s) -> a Int s -> UnionFind a s
+data UnionFind a m where
+   UF :: (Monad m, Ref ref m, PersistentArray a Int m)
+      => ref a -> a -> UnionFind a m
 
-newUnionFind :: PersistentArray (a Int s) Int (ST s)
-             => Int -> ST s (UnionFind a s)
+newUnionFind :: (Monad m, Ref ref m, PersistentArray a Int m)
+             => Int -> m (UnionFind a m)
 newUnionFind n = liftM2 UF (newRef =<< newArr n id) (newArr n (const 0))
 
-find :: UnionFind a s -> Int -> ST s Int
+find :: UnionFind a m -> Int -> m Int
 find (UF pref _) i = modifyRefM pref (go i)
   where
   go i parents = do
@@ -41,7 +39,7 @@ find (UF pref _) i = modifyRefM pref (go i)
       parents      <- setArr parents i p
       return (parents, p)
 
-union :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
+union :: Monad m => UnionFind a m -> Int -> Int -> m (UnionFind a m)
 union uf x y = do
   cx <- find uf x
   cy <- find uf y
@@ -54,14 +52,14 @@ union uf x y = do
       EQ -> do uf <- incRank uf cx
                link uf cy cx
 
-rank :: UnionFind a s -> Int -> ST s Int
+rank :: UnionFind a m -> Int -> m Int
 rank (UF _ ranks) x = getArr ranks x
 
-link :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
+link :: UnionFind a m -> Int -> Int -> m (UnionFind a m)
 link (UF pref rref) x y = do
   parents <- getRef pref
   pref'   <- newRef =<< setArr parents y x
   return (UF pref' rref)
 
-incRank :: UnionFind a s -> Int -> ST s (UnionFind a s)
-incRank (UF pref ranks) x = UF pref `fmap` modifyArr ranks x (+1)
+incRank :: UnionFind a m -> Int -> m (UnionFind a m)
+incRank (UF pref ranks) x = UF pref `liftM` modifyArr ranks x (+1)

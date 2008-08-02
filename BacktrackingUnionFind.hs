@@ -19,8 +19,11 @@ import Control.Monad.ST
 
 import UnionFind
 import RevertArray
+import MapArray
+import Data.IntMap (IntMap)
 
-newtype M s a = M { unM :: StateT (UnionFind RevertArray s) (ChoiceT (ST s)) a }
+newtype M s a = M
+  { unM :: StateT (UnionFind (RevertArray Int s) (ST s)) (ChoiceT (ST s)) a }
   deriving (Monad, MonadPlus)
 
 instance BaseM (ST s) (ST s) where

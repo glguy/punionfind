@@ -18,7 +18,7 @@ import Data.IORef
 import Data.STRef
 import Control.Monad.ST
 
-class Monad m => Ref ref m | ref -> m where
+class Monad m => Ref ref m | m -> ref where
   newRef :: a -> m (ref a)
   setRef :: ref a -> a -> m ()
   getRef :: ref a -> m a
