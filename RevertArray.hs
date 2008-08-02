@@ -19,7 +19,6 @@ import Data.Array.Vector
 import Data.STRef
 
 import PersistentArray
-import Ref
 
 -- | RevertArray is a persistent array that allows a previous revision
 --   to be used at the cost of invalidating all subsequent revisions.
@@ -33,7 +32,7 @@ data ArrayHistory e s
   | Diff !(RevertArray e s) !Int !e    -- ^ The array has been modified
   | Invalid                            -- ^ The array has been reverted
 
-instance UA e => PersistentArray (RevertArray e s) e (ST s) where
+instance UA e => PersistentArray (RevertArray e s) e s where
   newArr = new
   getArr = get
   setArr = set
@@ -42,17 +41,17 @@ new :: UA e => Int -> (Int -> e) -> ST s (RevertArray e s)
 new n f = do
   arr <- newMU n
   mapM_ (\ i -> writeMU arr i (f i)) [0..n-1]
-  RA `fmap` newRef (Arr arr)
+  RA `fmap` newSTRef (Arr arr)
 
 get :: UA e => RevertArray e s -> Int -> ST s e
 get (RA ref) i = do
-  h <- getRef ref
+  h <- readSTRef ref
   case h of
     Arr arr -> readMU arr i
     Invalid -> error "get: invalid array"
     Diff {} -> do
       arr <- revert ref
-      setRef ref (Arr arr)
+      writeSTRef ref (Arr arr)
       readMU arr i
 
 set :: UA e => RevertArray e s -> Int -> e -> ST s (RevertArray e s)
@@ -60,18 +59,18 @@ set (RA ref) i e = do
   arr <- revert ref
   old <- readMU arr i
   writeMU arr i e
-  r <- RA `fmap` newRef (Arr arr)
-  setRef ref (Diff r i old)
+  r <- RA `fmap` newSTRef (Arr arr)
+  writeSTRef ref (Diff r i old)
   return r
 
 revert :: UA e => STRef s (ArrayHistory e s) -> ST s (MUArr e s)
 revert ref = do
-  h <- getRef ref
+  h <- readSTRef ref
   case h of
     Arr arr -> return arr
     Invalid -> error "revert: invalid array"
     Diff (RA r) i e -> do
       arr <- revert r
       writeMU arr i e
-      setRef r Invalid
+      writeSTRef r Invalid
       return arr

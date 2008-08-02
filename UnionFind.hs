@@ -15,21 +15,20 @@ Portability :  non-portable
 module UnionFind (UnionFind, newUnionFind, union, find) where
 
 import Control.Monad
+import Control.Monad.ST
+import Data.STRef
 
 import PersistentArray
-import Ref
 import RevertArray
 
 data UnionFind a m where
-   UF :: (Ref ref m, PersistentArray a Int m)
-      => ref a -> a -> UnionFind a m
+   UF :: PersistentArray a Int s => STRef s a -> a -> UnionFind a s
 
-newUnionFind :: (Ref ref m, PersistentArray a Int m)
-             => Int -> m (UnionFind a m)
-newUnionFind n = liftM2 UF (newRef =<< newArr n id) (newArr n (const 0))
+newUnionFind :: PersistentArray a Int s => Int -> ST s (UnionFind a s)
+newUnionFind n = liftM2 UF (newSTRef =<< newArr n id) (newArr n (const 0))
 
-find :: UnionFind a m -> Int -> m Int
-find (UF pref _) i = modifyRefM pref (go i)
+find :: UnionFind a s -> Int -> ST s Int
+find (UF pref _) i = modifySTRefM pref (go i)
   where
   go i parents = do
     p <- getArr parents i
@@ -38,7 +37,7 @@ find (UF pref _) i = modifyRefM pref (go i)
       parents      <- setArr parents i p
       return (parents, p)
 
-union :: Monad m => UnionFind a m -> Int -> Int -> m (UnionFind a m)
+union :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
 union uf x y = do
   cx <- find uf x
   cy <- find uf y
@@ -51,14 +50,19 @@ union uf x y = do
       EQ -> do uf <- incRank uf cx
                link uf cy cx
 
-rank :: UnionFind a m -> Int -> m Int
+rank :: UnionFind a s -> Int -> ST s Int
 rank (UF _ ranks) x = getArr ranks x
 
-link :: UnionFind a m -> Int -> Int -> m (UnionFind a m)
+link :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
 link (UF pref rref) x y = do
-  parents <- getRef pref
-  pref'   <- newRef =<< setArr parents y x
+  parents <- readSTRef pref
+  pref'   <- newSTRef =<< setArr parents y x
   return (UF pref' rref)
 
-incRank :: UnionFind a m -> Int -> m (UnionFind a m)
+incRank :: UnionFind a s -> Int -> ST s (UnionFind a s)
 incRank (UF pref ranks) x = UF pref `liftM` modifyArr ranks x (+1)
+
+modifySTRefM ref f = do
+     (x,res) <- f =<< readSTRef ref
+     writeSTRef ref x
+     return res

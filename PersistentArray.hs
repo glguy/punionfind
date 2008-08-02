@@ -13,12 +13,13 @@ Portability :  non-portable
 -}
 
 module PersistentArray where
+
 import Control.Monad.ST
 
-class Monad m => PersistentArray a e m | a -> e m where
-  newArr :: Int -> (Int -> e) -> m a
-  getArr :: a -> Int -> m e
-  setArr :: a -> Int -> e -> m a
+class PersistentArray a e s | a -> e s where
+  newArr :: Int -> (Int -> e) -> ST s a
+  getArr :: a -> Int -> ST s e
+  setArr :: a -> Int -> e -> ST s a
 
-modifyArr :: PersistentArray a e m => a -> Int -> (e -> e) -> m a
+modifyArr :: PersistentArray a e s => a -> Int -> (e -> e) -> ST s a
 modifyArr a i f = setArr a i . f =<< getArr a i
