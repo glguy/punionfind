@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
-
 {- |
 Module      :  PersistentArray
 Description :  Generic operations on immutable arrays in a monad
@@ -16,10 +14,10 @@ module PersistentArray where
 
 import Control.Monad.ST
 
-class PersistentArray a e s | a -> e s where
-  newArr :: Int -> (Int -> e) -> ST s a
-  getArr :: a -> Int -> ST s e
-  setArr :: a -> Int -> e -> ST s a
+class PersistentArray a where
+  newArr :: Int -> (Int -> Int) -> ST s (a s)
+  getArr :: a s -> Int -> ST s Int
+  setArr :: a s -> Int -> Int -> ST s (a s)
 
-modifyArr :: PersistentArray a e s => a -> Int -> (e -> e) -> ST s a
+modifyArr :: PersistentArray a => a s -> Int -> (Int -> Int) -> ST s (a s)
 modifyArr a i f = setArr a i . f =<< getArr a i

@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, Rank2Types #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses, Rank2Types #-}
 {- |
 Module      :  BacktrackingUnionFind
 Description :  Efficient backtracking union-find monad
@@ -14,43 +14,31 @@ Portability :  non-portable
 module BacktrackingUnionFind (M, runM, unify, testEquiv) where
 
 import MonadLib
-import MonadLib.Derive
 import Control.Monad
 import Control.Monad.ST
 
 import UnionFind
 import RevertArray
-import Data.IntMap (IntMap)
 
-newtype M s a = M
-  { unM :: StateT (UnionFind (RevertArray Int s) s) (ChoiceT (ST s)) a }
-
-iso = Iso M unM
+newtype M s a =
+  M { unM :: StateT (UnionFind RevertArray s) (ChoiceT (ST s)) a }
+  deriving (Monad, MonadPlus)
 
 instance BaseM (M s) (ST s) where
-    inBase  = derive_inBase iso
-    
-instance Monad (M s) where
-    (>>=)   = derive_bind iso
-    return  = derive_return iso
-    fail    = derive_fail iso
-
-instance MonadPlus (M s) where
-    mplus   = derive_mplus iso
-    mzero   = derive_mzero iso
+    inBase  = M . inBase
 
 -- | Runs the backtracking computation with union/find operations supported
 --   on indexes from 0 to n-1 and returns the first success if one is found.
-runM :: Int -> (forall s. M s b) -> [b]
+runM :: forall a. Int -> (forall s. M s a) -> [a]
 runM n m = runST (do uf <- newUnionFind n
                      findAll $ fmap fst $ runStateT uf $ unM m)
 
 unify :: Int -> Int -> M s ()
-unify x y = M $ do
+unify x y = M (do
     uf <- get
-    set =<< inBase (union uf x y)
+    set =<< inBase (union uf x y))
 
 testEquiv :: Int -> Int -> M s Bool
-testEquiv x y = M $ do
+testEquiv x y = M (do
     uf <- get
-    inBase $ liftM2 (==) (find uf x) (find uf y)
+    inBase $ liftM2 (==) (find uf x) (find uf y))

@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts, GADTs #-}
-
 {- |
 Module      :  UnionFind
 Description :  Efficient backtracking union-find data structure
@@ -21,23 +19,23 @@ import Data.STRef
 import PersistentArray
 import RevertArray
 
-data UnionFind a m where
-   UF :: PersistentArray a Int s => STRef s a -> a -> UnionFind a s
+data UnionFind a s = UF (STRef s (a s)) (a s)
 
-newUnionFind :: PersistentArray a Int s => Int -> ST s (UnionFind a s)
+newUnionFind :: PersistentArray a => Int -> ST s (UnionFind a s)
 newUnionFind n = liftM2 UF (newSTRef =<< newArr n id) (newArr n (const 0))
 
-find :: UnionFind a s -> Int -> ST s Int
+find :: PersistentArray a => UnionFind a s -> Int -> ST s Int
 find (UF pref _) i = modifySTRefM pref (go i)
-  where
-  go i parents = do
-    p <- getArr parents i
-    if p == i then return (parents, p) else do
-      (parents, p) <- go p parents
-      parents      <- setArr parents i p
-      return (parents, p)
+    where
+      go i parents = do
+        p <- getArr parents i
+        if p == i then return (parents, p) else do
+           (parents, p) <- go p parents
+           parents      <- setArr parents i p
+           return (parents, p)
 
-union :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
+union :: PersistentArray a 
+      => UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
 union uf x y = do
   cx <- find uf x
   cy <- find uf y
@@ -47,22 +45,20 @@ union uf x y = do
     case compare rx ry of
       GT -> link uf cy cx
       LT -> link uf cx cy
-      EQ -> do uf <- incRank uf cx
+      EQ -> do uf <- setRank uf cx (rx + 1)
                link uf cy cx
 
-rank :: UnionFind a s -> Int -> ST s Int
-rank (UF _ ranks) x = getArr ranks x
+  where
+    rank (UF _ ranks) x = getArr ranks x
 
-link :: UnionFind a s -> Int -> Int -> ST s (UnionFind a s)
-link (UF pref rref) x y = do
-  parents <- readSTRef pref
-  pref'   <- newSTRef =<< setArr parents y x
-  return (UF pref' rref)
+    link (UF pref rref) x y = do
+      parents <- readSTRef pref
+      pref'   <- newSTRef =<< setArr parents y x
+      return (UF pref' rref)
 
-incRank :: UnionFind a s -> Int -> ST s (UnionFind a s)
-incRank (UF pref ranks) x = UF pref `liftM` modifyArr ranks x (+1)
+    setRank (UF pref ranks) x r = UF pref `liftM` setArr ranks x r
 
-modifySTRefM :: (STRef s a) -> (a -> ST s (a,b)) -> ST s b
+modifySTRefM :: STRef s a -> (a -> ST s (a,b)) -> ST s b
 modifySTRefM ref f = do
      (x,res) <- f =<< readSTRef ref
      writeSTRef ref x

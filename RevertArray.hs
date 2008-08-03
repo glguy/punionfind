@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
-
 {- |
 Module      :  RevertArray
 Description :  Efficient backtracking array data structure
@@ -25,25 +23,25 @@ import PersistentArray
 --   This is intended to be used in backtracking situations where an
 --   efficient revert history is needed. The programmer is responsible
 --   for ensuring that a RevertArray value is not used once invalidated.
-newtype RevertArray e s = RA (STRef s (ArrayHistory e s))
+newtype RevertArray s = RA (STRef s (ArrayHistory s))
 
-data ArrayHistory e s
-  = Arr  !(MUArr e s)                  -- ^ Latest version of the array
-  | Diff !(RevertArray e s) !Int !e    -- ^ The array has been modified
+data ArrayHistory s
+  = Arr  !(MUArr Int s)                -- ^ Latest version of the array
+  | Diff !(RevertArray s) !Int !Int    -- ^ The array has been modified
   | Invalid                            -- ^ The array has been reverted
 
-instance UA e => PersistentArray (RevertArray e s) e s where
+instance PersistentArray RevertArray where
   newArr = new
   getArr = get
   setArr = set
 
-new :: UA e => Int -> (Int -> e) -> ST s (RevertArray e s)
+new :: Int -> (Int -> Int) -> ST s (RevertArray s)
 new n f = do
   arr <- newMU n
   mapM_ (\ i -> writeMU arr i (f i)) [0..n-1]
   RA `fmap` newSTRef (Arr arr)
 
-get :: UA e => RevertArray e s -> Int -> ST s e
+get :: RevertArray s -> Int -> ST s Int
 get (RA ref) i = do
   h <- readSTRef ref
   case h of
@@ -54,7 +52,7 @@ get (RA ref) i = do
       writeSTRef ref (Arr arr)
       readMU arr i
 
-set :: UA e => RevertArray e s -> Int -> e -> ST s (RevertArray e s)
+set :: RevertArray s -> Int -> Int -> ST s (RevertArray s)
 set (RA ref) i e = do
   arr <- revert ref
   old <- readMU arr i
@@ -63,7 +61,7 @@ set (RA ref) i e = do
   writeSTRef ref (Diff r i old)
   return r
 
-revert :: UA e => STRef s (ArrayHistory e s) -> ST s (MUArr e s)
+revert :: STRef s (ArrayHistory s) -> ST s (MUArr Int s)
 revert ref = do
   h <- readSTRef ref
   case h of
