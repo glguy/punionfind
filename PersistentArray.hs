@@ -16,8 +16,5 @@ import Control.Monad.ST
 
 class PersistentArray a where
   newArr :: Int -> (Int -> Int) -> ST s (a s)
-  getArr :: a s -> Int -> ST s Int
-  setArr :: a s -> Int -> Int -> ST s (a s)
-
-modifyArr :: PersistentArray a => a s -> Int -> (Int -> Int) -> ST s (a s)
-modifyArr a i f = setArr a i . f =<< getArr a i
+  getArr :: Int -> a s -> ST s Int
+  setArr :: Int -> Int -> a s -> ST s (a s)

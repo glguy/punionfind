@@ -41,34 +41,34 @@ new n f = do
   mapM_ (\ i -> writeMU arr i (f i)) [0..n-1]
   RA `fmap` newSTRef (Arr arr)
 
-get :: RevertArray s -> Int -> ST s Int
-get (RA ref) i = do
+get :: Int -> RevertArray s -> ST s Int
+get i (RA ref) = do
   h <- readSTRef ref
   case h of
     Arr arr -> readMU arr i
     Invalid -> error "get: invalid array"
-    Diff {} -> do
-      arr <- revert ref
-      writeSTRef ref (Arr arr)
-      readMU arr i
+    Diff {} ->
+      revert ref $ \ arr -> do
+        writeSTRef ref (Arr arr)
+        readMU arr i
 
-set :: RevertArray s -> Int -> Int -> ST s (RevertArray s)
-set (RA ref) i e = do
-  arr <- revert ref
-  old <- readMU arr i
-  writeMU arr i e
-  r <- RA `fmap` newSTRef (Arr arr)
-  writeSTRef ref (Diff r i old)
-  return r
+set :: Int -> Int -> RevertArray s -> ST s (RevertArray s)
+set i e (RA ref) =
+  revert ref $ \ arr -> do
+    old <- readMU arr i
+    writeMU arr i e
+    r <- RA `fmap` newSTRef (Arr arr)
+    writeSTRef ref (Diff r i old)
+    return r
 
-revert :: STRef s (ArrayHistory s) -> ST s (MUArr Int s)
-revert ref = do
+revert :: STRef s (ArrayHistory s) -> (MUArr Int s -> ST s a) -> ST s a
+revert ref f = do
   h <- readSTRef ref
   case h of
-    Arr arr -> return arr
+    Arr arr -> f arr
     Invalid -> error "revert: invalid array"
-    Diff (RA r) i e -> do
-      arr <- revert r
-      writeMU arr i e
-      writeSTRef r Invalid
-      return arr
+    Diff (RA r) i e ->
+      revert r $ \ arr -> do
+        writeMU arr i e
+        writeSTRef r Invalid
+        f arr
